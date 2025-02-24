@@ -13,16 +13,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-
 namespace Serverless_Image_Resizer
 {
     public class ImageResizer
     {
-        private readonly BlobServiceClient _blobServiceClient;
         private readonly ILogger<ImageResizer> _logger;
-        public ImageResizer(BlobServiceClient blobServiceClient, ILogger<ImageResizer> logger)
+
+        public ImageResizer(ILogger<ImageResizer> logger)
         {
-            _blobServiceClient = blobServiceClient;
             _logger = logger;
         }
 
@@ -33,27 +31,31 @@ namespace Serverless_Image_Resizer
             { "large", 1000 }
         };
 
-
         [Function("ImageResizer")]
         public async Task Run(
-         [BlobTrigger("incoming-images/{name}", Connection = "AzureWebJobsStorage")] Stream imageStream,
-         string name)
+            [BlobTrigger("incoming-images/{name}", Connection = "AzureWebJobsStorage")] Stream imageStream,
+            string name,
+            [Blob("resized-images", FileAccess.Write, Connection = "AzureWebJobsStorage")] BlobContainerClient outputContainerClient)
         {
             _logger.LogInformation($"Processing uploaded image: {name}");
 
             foreach (var size in ImageSizes)
             {
-                await ResizeAndSaveImage(imageStream, name, size.Key, size.Value);
+                using var clonedStream = new MemoryStream();
+                await imageStream.CopyToAsync(clonedStream);
+                clonedStream.Position = 0;
+
+                await ResizeAndSaveImage(clonedStream, name, size.Key, size.Value, outputContainerClient);
             }
 
             _logger.LogInformation($"Image {name} resized and saved successfully.");
         }
 
-        private async Task ResizeAndSaveImage(Stream imageStream, string fileName, string sizeLabel, int width)
+        private async Task ResizeAndSaveImage(Stream imageStream, string fileName, string sizeLabel, int width, BlobContainerClient outputContainerClient)
         {
             try
             {
-                imageStream.Position = 0; // Reset stream position
+                imageStream.Position = 0;
 
                 using var image = await Image.LoadAsync(imageStream);
                 image.Mutate(x => x.Resize(width, 0));
@@ -62,9 +64,7 @@ namespace Serverless_Image_Resizer
                 await image.SaveAsync(outputStream, new JpegEncoder());
                 outputStream.Position = 0;
 
-                var outputContainer = _blobServiceClient.GetBlobContainerClient("resized-images");
-                var outputBlob = outputContainer.GetBlobClient($"{sizeLabel}/{fileName}");
-
+                var outputBlob = outputContainerClient.GetBlobClient($"{sizeLabel}/{fileName}");
                 await outputBlob.UploadAsync(outputStream, overwrite: true);
 
                 _logger.LogInformation($"Resized image ({sizeLabel}) saved as {fileName}");
@@ -75,5 +75,4 @@ namespace Serverless_Image_Resizer
             }
         }
     }
-
 }
