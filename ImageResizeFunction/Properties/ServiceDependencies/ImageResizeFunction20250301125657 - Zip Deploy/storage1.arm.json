@@ -4,7 +4,7 @@
   "parameters": {
     "resourceGroupName": {
       "type": "string",
-      "defaultValue": "serverless-image-resizer-rs",
+      "defaultValue": "serverless-image-resizer-rg",
       "metadata": {
         "_parameterType": "resourceGroup",
         "description": "Name of the resource group for the resource. It is recommended to put resources under same resource group for better tracking."
@@ -50,10 +50,10 @@
           "resources": [
             {
               "sku": {
-                "name": "Standard_LRS",
+                "name": "Standard_RAGRS",
                 "tier": "Standard"
               },
-              "kind": "Storage",
+              "kind": "StorageV2",
               "name": "serverlessimageresizerst",
               "type": "Microsoft.Storage/storageAccounts",
               "location": "[parameters('resourceLocation')]",

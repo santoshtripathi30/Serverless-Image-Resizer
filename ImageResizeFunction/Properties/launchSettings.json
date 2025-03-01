@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "Serverless_Image_Resizer": {
+    "ImageResizeFunction": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7222",
+      "commandLineArgs": "--port 7121",
       "launchBrowser": false
     }
   }
